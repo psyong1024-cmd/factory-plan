@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1공장 AI 생산계획 시스템</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f0f2f5;--surface:#fff;--surface2:#f7f8fa;--border:#dde1e8;--border2:#c8cdd6;
+  --accent:#1a6fff;--accent-light:#e8f0ff;
+  --ok:#0a8a4e;--ok-light:#e6f5ee;
+  --warn:#d97706;--warn-light:#fff8e6;
+  --danger:#dc2626;--danger-light:#fff0f0;
+  --curing:#7c3aed;--curing-light:#f5f3ff;
+  --cubing:#0891b2;--cubing-light:#ecfeff;
+  --text:#1a1d23;--text2:#4a5568;--text3:#8a95a3;
+  --shadow:0 1px 4px rgba(0,0,0,.08),0 2px 12px rgba(0,0,0,.04);
+  --shadow-lg:0 4px 24px rgba(0,0,0,.14);
+  --r:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;font-size:15px;line-height:1.6;}
+
+/* NAV */
+.nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;height:54px;position:sticky;top:0;z-index:500;box-shadow:0 1px 6px rgba(0,0,0,.07);}
+.nav-brand{font-size:15px;font-weight:700;color:var(--accent);margin-right:20px;white-space:nowrap;}
+.nav-tabs{display:flex;gap:3px;flex:1;overflow-x:auto;}
+.nav-tab{padding:5px 13px;border:none;background:none;cursor:pointer;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:500;color:var(--text2);border-radius:6px;transition:all .15s;white-space:nowrap;}
+.nav-tab:hover{background:var(--bg);}
+.nav-tab.active{background:var(--accent-light);color:var(--accent);font-weight:600;}
+.nav-right{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);white-space:nowrap;margin-left:10px;}
+
+/* PAGE */
+.page{display:none;padding:20px;max-width:1380px;margin:0 auto;}
+.page.active{display:block;}
+.section-title{font-size:17px;font-weight:700;margin-bottom:3px;}
+.section-sub{font-size:13px;color:var(--text2);margin-bottom:18px;}
+
+/* CARD */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;box-shadow:var(--shadow);margin-bottom:16px;}
+.card-title{font-size:14px;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:7px;}
+.card-title .dot{width:4px;height:15px;border-radius:2px;flex-shrink:0;background:var(--accent);}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;}
+.tbl th{background:var(--surface2);padding:9px 11px;text-align:left;font-size:12px;font-weight:600;color:var(--text2);border-bottom:2px solid var(--border);white-space:nowrap;}
+.tbl td{padding:9px 11px;font-size:13px;border-bottom:1px solid var(--border);}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:var(--surface2);}
+.tbl input[type=number]{width:85px;padding:4px 7px;border:1px solid var(--border2);border-radius:5px;font-size:13px;font-family:'JetBrains Mono',monospace;text-align:right;}
+.tbl input[type=number]:focus{outline:none;border-color:var(--accent);}
+
+/* STATS */
+.stat-row{display:grid;grid-template-columns:repeat(5,1fr);gap:11px;margin-bottom:16px;}
+@media(max-width:1000px){.stat-row{grid-template-columns:repeat(3,1fr);}}
+.stat-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:13px 15px;box-shadow:var(--shadow);}
+.stat-lbl{font-size:12px;color:var(--text2);margin-bottom:3px;}
+.stat-val{font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:600;}
+.sv-danger{color:var(--danger);}.sv-warn{color:var(--warn);}.sv-ok{color:var(--ok);}.sv-blue{color:var(--accent);}.sv-purple{color:var(--curing);}
+
+/* CHIP */
+.chip{display:inline-block;font-size:11px;font-weight:600;padding:2px 7px;border-radius:3px;white-space:nowrap;}
+.ch-danger{background:var(--danger-light);color:var(--danger);}
+.ch-warn{background:var(--warn-light);color:var(--warn);}
+.ch-ok{background:var(--ok-light);color:var(--ok);}
+.ch-blue{background:var(--accent-light);color:var(--accent);}
+.ch-curing{background:var(--curing-light);color:var(--curing);}
+
+/* BTN */
+.btn{padding:7px 14px;border:none;border-radius:7px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:600;transition:all .15s;display:inline-flex;align-items:center;gap:4px;}
+.btn-primary{background:var(--accent);color:#fff;}.btn-primary:hover{background:#1558d6;}
+.btn-secondary{background:var(--surface);border:1px solid var(--border2);color:var(--text2);}.btn-secondary:hover{background:var(--bg);}
+.btn-ok{background:var(--ok);color:#fff;}.btn-ok:hover{background:#076b3c;}
+.btn-cubing{background:var(--cubing);color:#fff;}.btn-cubing:hover{background:#0e7490;}
+.btn-sm{padding:3px 9px;font-size:12px;}
+.btn-edit{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;}
+.btn-confirm{background:var(--ok-light);color:var(--ok);border:1px solid #a7f3d0;}
+.btn-red-sm{background:var(--danger-light);color:var(--danger);border:1px solid #fecaca;font-size:12px;padding:3px 8px;}
+
+/* ALERT */
+.alert{padding:10px 13px;border-radius:7px;font-size:13px;margin-bottom:11px;display:flex;align-items:flex-start;gap:8px;}
+.alert .ai{font-size:14px;flex-shrink:0;margin-top:1px;}
+.al-danger{background:var(--danger-light);color:var(--danger);border:1px solid #fecaca;}
+.al-warn{background:var(--warn-light);color:var(--warn);border:1px solid #fde68a;}
+.al-ok{background:var(--ok-light);color:var(--ok);border:1px solid #a7f3d0;}
+.al-info{background:var(--accent-light);color:var(--accent);border:1px solid #bfdbfe;}
+.al-curing{background:var(--curing-light);color:var(--curing);border:1px solid #ddd6fe;}
+
+/* PRIORITY */
+.pri-item{display:flex;align-items:center;gap:11px;padding:12px 14px;border:1px solid var(--border);border-radius:8px;background:var(--surface);margin-bottom:7px;}
+.pri-item.danger{border-left:4px solid var(--danger);}
+.pri-item.warn{border-left:4px solid var(--warn);}
+.pri-item.ok{border-left:4px solid var(--ok);}
+.pri-rank{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--text3);width:22px;text-align:center;flex-shrink:0;}
+.pri-info{flex:1;}
+.pri-spec{font-size:14px;font-weight:600;}
+.pri-detail{font-size:12px;color:var(--text2);margin-top:1px;}
+.pri-nums{display:flex;gap:16px;text-align:right;flex-shrink:0;}
+.pn-lbl{font-size:10px;color:var(--text3);}
+.pn-val{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;}
+
+/* ══════════════════════════
+   파이프라인 (플로우 카드)
+══════════════════════════ */
+.flow-bar{display:flex;align-items:stretch;gap:0;margin-bottom:20px;background:linear-gradient(135deg,#f0f5ff,#f5f3ff);border:1px solid #c7d7ff;border-radius:12px;padding:14px 20px;flex-wrap:wrap;justify-content:center;}
+.flow-step{text-align:center;padding:6px 14px;display:flex;flex-direction:column;align-items:center;gap:4px;}
+.flow-icon{font-size:26px;}
+.flow-label{font-size:12px;font-weight:700;}
+.flow-sub{font-size:11px;color:var(--text2);}
+.flow-arr{display:flex;align-items:center;color:var(--text3);font-size:20px;padding:0 2px;}
+
+/* 양생실 테이블 */
+.curing-table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);margin-bottom:16px;}
+.curing-table-head{background:var(--curing);color:#fff;padding:12px 16px;display:flex;align-items:center;gap:8px;}
+.curing-table-head .cht-title{font-size:14px;font-weight:700;flex:1;}
+.curing-table-head .cht-total{font-family:'JetBrains Mono',monospace;font-size:13px;background:rgba(255,255,255,.2);padding:2px 10px;border-radius:10px;}
+.curing-row{display:grid;grid-template-columns:1fr 1fr auto auto auto auto;align-items:center;gap:0;border-bottom:1px solid var(--border);}
+.curing-row:last-child{border-bottom:none;}
+.curing-row:hover{background:var(--surface2);}
+.curing-row > div{padding:10px 14px;font-size:13px;}
+.cr-label{font-weight:600;}
+.cr-qty{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:14px;color:var(--curing);}
+.cr-input{display:flex;align-items:center;gap:6px;}
+.cr-input input{width:80px;padding:5px 8px;border:1px solid var(--border2);border-radius:5px;font-family:'JetBrains Mono',monospace;font-size:13px;text-align:right;}
+.cr-input input:focus{outline:none;border-color:var(--cubing);}
+.cr-btn{}
+.cr-adj{}
+.cr-empty{padding:20px;text-align:center;color:var(--text3);font-size:13px;}
+
+/* 큐빙 이력 */
+.log-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;}
+.log-row:last-child{border-bottom:none;}
+
+/* CALENDAR */
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:10px;}
+.cal-month-title{font-size:19px;font-weight:700;}
+.cal-nav{display:flex;align-items:center;gap:8px;}
+.cal-legend{display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--text2);margin-bottom:10px;}
+.cal-ld{display:flex;align-items:center;gap:4px;}
+.cal-ld-dot{width:10px;height:10px;border-radius:2px;}
+.cal-grid{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);}
+.cal-wdays{display:grid;grid-template-columns:repeat(7,1fr);background:var(--surface2);border-bottom:1px solid var(--border);}
+.cal-wd{text-align:center;padding:8px 4px;font-size:12px;font-weight:600;color:var(--text2);}
+.cal-wd:first-child{color:var(--danger);}.cal-wd:last-child{color:var(--accent);}
+.cal-days{display:grid;grid-template-columns:repeat(7,1fr);}
+.cal-day{border-right:1px solid var(--border);border-bottom:1px solid var(--border);min-height:108px;padding:6px;transition:background .12s;}
+.cal-day:nth-child(7n){border-right:none;}
+.cal-day.clickable{cursor:pointer;}.cal-day.clickable:hover{background:#f5f8ff;}
+.cal-day.other-month{background:var(--surface2);}
+.cal-day.other-month .cdn{color:var(--text3);}
+.cal-day.today{background:#f0f5ff;}
+.cal-day.holiday-day{background:#fffbf0;}
+.cal-day.rest-day{background:#fafafa;}
+.cdn{font-size:13px;font-weight:600;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:50%;margin-bottom:3px;}
+.cal-day.today .cdn{background:var(--accent);color:#fff;}
+.cal-day.sunday .cdn{color:var(--danger);}
+.cal-day.saturday .cdn{color:var(--accent);}
+.cal-day.holiday-day:not(.sunday):not(.saturday) .cdn{color:var(--warn);}
+.cal-hl{font-size:10px;color:var(--warn);font-weight:600;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cal-rl{font-size:10px;color:var(--text3);font-weight:500;margin-bottom:2px;}
+.cal-evs{display:flex;flex-direction:column;gap:2px;}
+.cal-ev{font-size:10px;padding:2px 4px;border-radius:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500;}
+.ce-danger{background:#fee2e2;color:#991b1b;}
+.ce-warn{background:#fef3c7;color:#92400e;}
+.ce-ok{background:#dcfce7;color:#14532d;}
+.ce-normal{background:#dbeafe;color:#1e3a5f;}
+.cal-capbar{margin-top:3px;height:3px;background:#e5e7eb;border-radius:2px;overflow:hidden;}
+.cal-capfill{height:100%;border-radius:2px;}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1000;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border-radius:12px;padding:22px;width:580px;max-width:96vw;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:14px;}
+.modal-close{float:right;background:none;border:none;font-size:21px;cursor:pointer;color:var(--text3);line-height:1;margin-top:-3px;}
+.fg{margin-bottom:12px;}.fl{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px;}
+.fi,.fs{width:100%;padding:8px 11px;border:1px solid var(--border2);border-radius:7px;font-size:14px;font-family:'Noto Sans KR',sans-serif;color:var(--text);background:var(--surface);}
+.fi:focus,.fs:focus{outline:none;border-color:var(--accent);}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:11px;}
+.factions{display:flex;gap:9px;justify-content:flex-end;margin-top:14px;}
+.cap-row{display:flex;gap:12px;flex-wrap:wrap;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:10px 13px;margin-bottom:12px;}
+.cap-item .cap-lbl{font-size:10px;color:var(--text3);font-weight:600;}
+.cap-item .cap-val{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;}
+.tag{display:inline-block;font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;}
+.t60{background:#ede9fe;color:#5b21b6;}.t80{background:#fce7f3;color:#9d174d;}
+.flex{display:flex;}.gap8{gap:8px;}.gap12{gap:12px;}
+.mb8{margin-bottom:8px;}.mb12{margin-bottom:12px;}.mb16{margin-bottom:16px;}.mb20{margin-bottom:20px;}
+.mt10{margin-top:10px;}.mt16{margin-top:16px;}
+.scroll-x{overflow-x:auto;}
+.mono{font-family:'JetBrains Mono',monospace;}.bold{font-weight:700;}
+.td{color:var(--danger);}.tw{color:var(--warn);}.tok{color:var(--ok);}.ta{color:var(--accent);}.tc{color:var(--curing);}.tcb{color:var(--cubing);}
+.divider{border:none;border-top:1px solid var(--border);margin:12px 0;}
+/* 출고 중요도 배지 */
+.urgency-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;white-space:nowrap;}
+.ub-critical{background:#fff0f0;color:#dc2626;border:1px solid #fecaca;}
+.ub-warn{background:#fff8e6;color:#d97706;border:1px solid #fde68a;}
+.ub-ok{background:#e6f5ee;color:#0a8a4e;border:1px solid #a7f3d0;}
+.ub-none{background:#f7f8fa;color:#8a95a3;border:1px solid #dde1e8;}
+/* 출고 중요도 요약 바 */
+.urgency-summary{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.urgency-summary-item{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface);font-size:13px;}
+.urgency-summary-item .uis-qty{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">🏭 1공장 AI</div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('dashboard',this)">📊 생산판단</button>
+    <button class="nav-tab" onclick="showPage('pipeline',this)">🔄 양생·큐빙 관리</button>
+    <button class="nav-tab" onclick="showPage('inventory',this)">📦 재고관리</button>
+    <button class="nav-tab" onclick="showPage('delivery',this)">🚚 출고예정</button>
+    <button class="nav-tab" onclick="showPage('calendar',this)">📅 생산계획 달력</button>
+    <button class="nav-tab" onclick="showPage('holidays',this)">🗓 휴무관리</button>
+  </div>
+  <div class="nav-right" id="today-label"></div>
+  <div id="sync-status" style="font-size:11px;color:var(--ok);margin-left:12px;white-space:nowrap;font-family:'JetBrains Mono',monospace;"></div>
+</nav>
+
+<!-- ══ PAGE: 생산판단 ══ -->
+<div class="page active" id="page-dashboard">
+  <div class="section-title">생산 판단 결과</div>
+  <div class="section-sub">가용재고 = 실재고 − 양생중 − 출고예정 &nbsp;|&nbsp; 양생 중인 제품은 큐빙 완료 전까지 실재고가 아닙니다</div>
+  <div class="stat-row" id="stat-row"></div>
+  <div id="alert-area"></div>
+  <div class="card">
+    <div class="card-title"><span class="dot"></span>생산 우선순위</div>
+    <div id="priority-list"></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="dot"></span>전체 품목 현황</div>
+    <div class="scroll-x">
+      <table class="tbl">
+        <thead><tr><th>제품</th><th>색상</th><th>실재고</th><th>양생중</th><th>출고예정</th><th>가용재고</th><th>최소기준</th><th>생산필요량</th><th>예상소요</th><th>상태</th></tr></thead>
+        <tbody id="summary-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE: 양생·큐빙 관리 ══ -->
+<div class="page" id="page-pipeline">
+  <div class="section-title">양생 · 큐빙 관리</div>
+  <div class="section-sub">품목·색상별 양생실 수량을 직접 관리합니다. 날짜 구분 없이 수량 기준으로만 운영합니다.</div>
+
+  <!-- 플로우 다이어그램 -->
+  <div class="flow-bar mb16">
+    <div class="flow-step"><div class="flow-icon">🏭</div><div class="flow-label" style="color:var(--accent);">생산</div><div class="flow-sub">달력에서 확정</div></div>
+    <div class="flow-arr">→</div>
+    <div class="flow-step"><div class="flow-icon">🧪</div><div class="flow-label" style="color:var(--curing);">양생실</div><div class="flow-sub">수동 수량 관리</div></div>
+    <div class="flow-arr">→</div>
+    <div class="flow-step"><div class="flow-icon">🔲</div><div class="flow-label" style="color:var(--cubing);">큐빙</div><div class="flow-sub">오늘 큐빙량 입력</div></div>
+    <div class="flow-arr">→</div>
+    <div class="flow-step"><div class="flow-icon">📦</div><div class="flow-label" style="color:var(--ok);">실재고 편입</div><div class="flow-sub">야적장 출하 가능</div></div>
+  </div>
+
+  <!-- 양생실 수량 관리 -->
+  <div class="curing-table-wrap">
+    <div class="curing-table-head">
+      <span class="cht-title">🧪 양생실 현황</span>
+      <span class="cht-total" id="curing-total-badge">합계: 0㎡</span>
+      <button style="margin-left:10px;background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:12px;font-weight:600;" onclick="openAddCuringModal()">+ 수동 추가</button>
+    </div>
+    <div id="curing-body"></div>
+  </div>
+
+  <!-- 오늘 큐빙 처리 -->
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--cubing);"></span>오늘 큐빙 처리</div>
+    <div class="alert al-info mb12">
+      <span class="ai">ℹ️</span>
+      <div>오늘 큐빙 완료된 수량을 입력하면 <strong>양생실에서 차감</strong>되고 <strong>실재고에 편입</strong>됩니다.<br>
+      고장 등으로 양생실 수량만 변경이 필요하면 위 표에서 직접 수정하세요.</div>
+    </div>
+    <div id="cubing-form"></div>
+  </div>
+
+  <!-- 처리 이력 -->
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--text3);"></span>큐빙 완료 이력</div>
+    <div id="cubing-log-list"><div style="color:var(--text3);font-size:13px;padding:8px 0;">완료 이력이 없습니다.</div></div>
+  </div>
+</div>
+
+<!-- ══ PAGE: 재고관리 ══ -->
+<div class="page" id="page-inventory">
+  <div class="section-title">재고 관리</div>
+  <div class="section-sub">큐빙 완료 후 야적장 실재고를 입력합니다. 양생 중 제품은 양생·큐빙 관리 탭에서 별도 관리됩니다.</div>
+  <div class="card mb16" id="confirm-log-card" style="display:none;">
+    <div class="card-title"><span class="dot" style="background:var(--ok);"></span>처리 이력</div>
+    <div id="confirm-log"></div>
+  </div>
+  <div class="card mb16">
+    <div class="card-title"><span class="dot"></span>200×200 규격 <span style="font-size:12px;color:var(--text3);font-weight:400;margin-left:6px;">1사이클 = 1.2㎡</span></div>
+    <div class="scroll-x"><table class="tbl" id="inv-table-200"></table></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="dot"></span>100×200 규격 <span style="font-size:12px;color:var(--text3);font-weight:400;margin-left:6px;">1사이클 = 1.0㎡</span></div>
+    <div class="scroll-x"><table class="tbl" id="inv-table-100"></table></div>
+  </div>
+  <div class="flex gap12 mt10">
+    <button class="btn btn-primary" onclick="saveInventory()">💾 저장 및 판단 갱신</button>
+    <button class="btn btn-secondary" onclick="loadDefaults()">↩ 기본값 초기화</button>
+  </div>
+</div>
+
+<!-- ══ PAGE: 출고예정 ══ -->
+<div class="page" id="page-delivery">
+  <div class="section-title">출고예정 관리</div>
+  <div class="section-sub">출고일까지 남은 기간에 따라 중요도가 자동 분류되며 AI 생산계획 우선순위에 반영됩니다.</div>
+
+  <div class="card mb16" style="padding:14px 18px;">
+    <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:10px;">중요도 기준 (출고일까지 남은 일수)</div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:7px;background:#fff0f0;border:1px solid #fecaca;">
+        <span class="urgency-badge ub-critical">🔴 긴급</span>
+        <span style="font-size:12px;color:#991b1b;">D-7 이내 — AI 최우선 배치 (점수 +100)</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:7px;background:#fff8e6;border:1px solid #fde68a;">
+        <span class="urgency-badge ub-warn">🟠 주의</span>
+        <span style="font-size:12px;color:#92400e;">D-8 ~ D-21 — 생산필요량 × 1.5 가중치</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:7px;background:#e6f5ee;border:1px solid #a7f3d0;">
+        <span class="urgency-badge ub-ok">🟢 여유</span>
+        <span style="font-size:12px;color:#065f46;">D-22 이상 — 기본 우선순위 (가중치 ×1.0)</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:7px;background:#f7f8fa;border:1px solid #dde1e8;">
+        <span class="urgency-badge ub-none">⚪ 미확정</span>
+        <span style="font-size:12px;color:#8a95a3;">날짜 없음 — 최하위 순위</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="urgency-summary" id="urgency-summary"></div>
+  <div class="flex gap12 mb16"><button class="btn btn-primary" onclick="openDeliveryModal()">+ 출고예정 추가</button></div>
+  <div id="delivery-list-area"></div>
+</div>
+
+<!-- ══ PAGE: 생산계획 달력 ══ -->
+<div class="page" id="page-calendar">
+  <div class="cal-header">
+    <div>
+      <div class="section-title" style="margin-bottom:0;">생산계획 달력</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:2px;">날짜 클릭 → 계획 입력/수정/생산확정 (생산확정 시 양생실에 자동 반영)</div>
+    </div>
+    <div class="cal-nav">
+      <button class="btn btn-secondary btn-sm" onclick="changeMonth(-1)">◀</button>
+      <span class="cal-month-title" id="cal-month-title"></span>
+      <button class="btn btn-secondary btn-sm" onclick="changeMonth(1)">▶</button>
+    </div>
+  </div>
+  <div class="cal-legend">
+    <span class="cal-ld"><span class="cal-ld-dot" style="background:#fee2e2;"></span>긴급생산</span>
+    <span class="cal-ld"><span class="cal-ld-dot" style="background:#fef3c7;"></span>일반생산</span>
+    <span class="cal-ld"><span class="cal-ld-dot" style="background:#dcfce7;"></span>생산확정</span>
+    <span class="cal-ld"><span class="cal-ld-dot" style="background:#fffbf0;border:1px solid #fde68a;"></span>공휴일</span>
+    <span class="cal-ld"><span class="cal-ld-dot" style="background:#f1f5f9;border:1px solid var(--border);"></span>휴무</span>
+  </div>
+  <div class="cal-grid">
+    <div class="cal-wdays"><div class="cal-wd">일</div><div class="cal-wd">월</div><div class="cal-wd">화</div><div class="cal-wd">수</div><div class="cal-wd">목</div><div class="cal-wd">금</div><div class="cal-wd">토</div></div>
+    <div class="cal-days" id="cal-days"></div>
+  </div>
+  <div class="card mt10">
+    <div class="card-title"><span class="dot"></span>AI 자동 생산계획 생성</div>
+    <div class="cap-row">
+      <div class="cap-item"><div class="cap-lbl">200×200 기준용량</div><div class="cap-val">1,440㎡/일</div></div>
+      <div class="cap-item"><div class="cap-lbl">100×200 기준용량</div><div class="cap-val">1,200㎡/일</div></div>
+      <div class="cap-item"><div class="cap-lbl">몰드교체 로스</div><div class="cap-val tw">−7%/회</div></div>
+      <div class="cap-item"><div class="cap-lbl">색상교체 로스</div><div class="cap-val tw">−3%/회</div></div>
+      <div class="cap-item"><div class="cap-lbl">로스 누적방식</div><div class="cap-val">교체횟수×누적</div></div>
+    </div>
+    <div class="alert al-info mb12">
+      <span class="ai">ℹ️</span>
+      <div>공휴일·휴무 제외, 교체 횟수별 로스 누적 적용.<br>
+      <strong>출고 중요도 가중치:</strong> 🔴긴급(D-7) 최우선 → 🟠주의(D-21) ×1.5 → 🟢여유 기본 → ⚪미확정 최하위</div>
+    </div>
+    <div class="flex gap12">
+      <button class="btn btn-ok" onclick="autoSchedule()">🤖 AI 자동 생산계획 생성</button>
+      <button class="btn btn-secondary" onclick="clearSchedule()">🗑 계획 초기화</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PAGE: 휴무관리 ══ -->
+<div class="page" id="page-holidays">
+  <div class="section-title">휴무 관리</div>
+  <div class="section-sub">공식 공휴일은 자동 적용. 사내 추가 휴무를 등록하세요.</div>
+  <div class="card mb16">
+    <div class="card-title"><span class="dot"></span>2026년 대한민국 공휴일</div>
+    <div class="scroll-x"><table class="tbl"><thead><tr><th>날짜</th><th>공휴일명</th></tr></thead><tbody id="official-holiday-tbody"></tbody></table></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--curing);"></span>사내 추가 휴무</div>
+    <div class="flex gap12 mb12">
+      <input class="fi" id="ch-date" type="date" style="width:155px;">
+      <input class="fi" id="ch-name" type="text" placeholder="휴무 사유 (예: 전직원 연차)" style="flex:1;">
+      <button class="btn btn-primary" onclick="addCustomHoliday()">+ 추가</button>
+    </div>
+    <div id="custom-holiday-list"></div>
+  </div>
+</div>
+
+<!-- ══ MODAL: 출고예정 추가/수정 ══ -->
+<div class="modal-overlay" id="delivery-modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeDeliveryModal()">×</button>
+    <div class="modal-title" id="delivery-modal-title">출고예정 추가</div>
+    <input type="hidden" id="d-edit-id">
+    <div class="fg"><label class="fl">현장명</label><input class="fi" id="d-site" type="text"></div>
+    <div class="frow">
+      <div class="fg"><label class="fl">제품</label>
+        <select class="fs" id="d-product">
+          <option value="200x200x60T">200×200×60T (1사이클=1.2㎡)</option>
+          <option value="200x200x80T">200×200×80T (1사이클=1.2㎡)</option>
+          <option value="100x200x60T">100×200×60T (1사이클=1.0㎡)</option>
+          <option value="100x200x80T">100×200×80T (1사이클=1.0㎡)</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">색상</label>
+        <select class="fs" id="d-color"><option>그레이</option><option>화이트</option><option>블랙</option><option>옐로우</option><option>래드</option></select>
+      </div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label class="fl">수량 (㎡)</label><input class="fi" id="d-qty" type="number" min="0"></div>
+      <div class="fg"><label class="fl">출고예정일</label><input class="fi" id="d-date" type="date"></div>
+    </div>
+    <div class="fg"><label class="fl">비고</label><input class="fi" id="d-note" type="text"></div>
+    <div class="factions"><button class="btn btn-secondary" onclick="closeDeliveryModal()">취소</button><button class="btn btn-primary" onclick="saveDelivery()">저장</button></div>
+  </div>
+</div>
+
+<!-- ══ MODAL: 달력 날짜 계획 ══ -->
+<div class="modal-overlay" id="cal-modal">
+  <div class="modal" style="width:600px;">
+    <button class="modal-close" onclick="closeCalModal()">×</button>
+    <div class="modal-title" id="cal-modal-title"></div>
+    <div id="cal-day-status"></div>
+    <div id="cal-existing-plans"></div>
+    <hr class="divider">
+    <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:9px;">생산계획 추가</div>
+    <div class="cap-row" id="cal-capacity-display"></div>
+    <div class="frow">
+      <div class="fg"><label class="fl">제품</label>
+        <select class="fs" id="cm-product" onchange="calcCalCapacity()">
+          <option value="200x200x60T">200×200×60T</option>
+          <option value="200x200x80T">200×200×80T</option>
+          <option value="100x200x60T">100×200×60T</option>
+          <option value="100x200x80T">100×200×80T</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">색상</label>
+        <select class="fs" id="cm-color" onchange="calcCalCapacity()"><option>그레이</option><option>화이트</option><option>블랙</option><option>옐로우</option><option>래드</option></select>
+      </div>
+    </div>
+    <div class="frow">
+      <div class="fg"><label class="fl">생산량 (㎡)</label><input class="fi" id="cm-qty" type="number" min="0"></div>
+      <div class="fg"><label class="fl">메모</label><input class="fi" id="cm-note" type="text"></div>
+    </div>
+    <div class="factions"><button class="btn btn-secondary" onclick="closeCalModal()">닫기</button><button class="btn btn-primary" onclick="saveCalPlan()">+ 추가</button></div>
+  </div>
+</div>
+
+<!-- ══ MODAL: 양생실 수동 추가 ══ -->
+<div class="modal-overlay" id="add-curing-modal">
+  <div class="modal" style="width:420px;">
+    <button class="modal-close" onclick="closeAddCuringModal()">×</button>
+    <div class="modal-title">양생실 수량 수동 추가</div>
+    <div class="alert al-info mb12"><span class="ai">ℹ️</span><div>생산 확정 외에 직접 양생실 수량을 추가합니다.<br>고장 등 예외 상황에서 수동으로 입력하세요.</div></div>
+    <div class="frow">
+      <div class="fg"><label class="fl">제품</label>
+        <select class="fs" id="ac-product">
+          <option value="200x200x60T">200×200×60T</option>
+          <option value="200x200x80T">200×200×80T</option>
+          <option value="100x200x60T">100×200×60T</option>
+          <option value="100x200x80T">100×200×80T</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">색상</label>
+        <select class="fs" id="ac-color"><option>그레이</option><option>화이트</option><option>블랙</option><option>옐로우</option><option>래드</option></select>
+      </div>
+    </div>
+    <div class="fg"><label class="fl">추가 수량 (㎡)</label><input class="fi" id="ac-qty" type="number" min="0" placeholder="예: 720"></div>
+    <div class="fg"><label class="fl">사유 (선택)</label><input class="fi" id="ac-note" type="text" placeholder="예: 어제 생산분 누락, 재확인 추가"></div>
+    <div class="factions"><button class="btn btn-secondary" onclick="closeAddCuringModal()">취소</button><button class="btn btn-primary" onclick="saveAddCuring()">추가</button></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// 상수
+// ══════════════════════════════════════════
+const PRODUCTS = [
+  {id:'200x200x60T', label:'200×200×60T', tag:'60T', priority:1, mold:'A', m2pc:1.2, dailyCap:1440},
+  {id:'200x200x80T', label:'200×200×80T', tag:'80T', priority:2, mold:'A', m2pc:1.2, dailyCap:1440},
+  {id:'100x200x60T', label:'100×200×60T', tag:'60T', priority:1, mold:'B', m2pc:1.0, dailyCap:1200},
+  {id:'100x200x80T', label:'100×200×80T', tag:'80T', priority:2, mold:'B', m2pc:1.0, dailyCap:1200},
+];
+const COLORS = ['그레이','화이트','블랙','옐로우','래드'];
+const COLOR_HEX = {그레이:'#9ca3af',화이트:'#e5e7eb',블랙:'#374151',옐로우:'#fbbf24',래드:'#ef4444'};
+const MOLD_LOSS = 0.07;
+const COLOR_LOSS = 0.03;
+
+const OFFICIAL_HOLIDAYS = {
+  '2026-01-01':'신정','2026-01-28':'설날 전날','2026-01-29':'설날','2026-01-30':'설날 다음날',
+  '2026-03-01':'삼일절','2026-05-05':'어린이날','2026-05-24':'부처님오신날',
+  '2026-06-06':'현충일','2026-08-15':'광복절',
+  '2026-09-24':'추석 전날','2026-09-25':'추석','2026-09-26':'추석 다음날',
+  '2026-10-03':'개천절','2026-10-09':'한글날','2026-12-25':'크리스마스',
+};
+
+// ══════════════════════════════════════════
+// 헬퍼
+// ══════════════════════════════════════════
+const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const isHoliday = dk => !!(OFFICIAL_HOLIDAYS[dk] || state.customHolidays[dk]);
+const isWeekend = dk => { const d=new Date(dk).getDay(); return d===0||d===6; };
+const isRestDay = dk => isWeekend(dk)||isHoliday(dk);
+const getHolidayLabel = dk => OFFICIAL_HOLIDAYS[dk]||state.customHolidays[dk]||'';
+const getProd = id => PRODUCTS.find(p=>p.id===id);
+const getMinStock = (pid,color) => pid.startsWith('200x200')?(color==='그레이'?1500:500):(color==='그레이'?500:300);
+
+// ★ 출고 중요도 계산
+function getDeliveryUrgency(dateStr) {
+  if (!dateStr) return {level:'none', label:'⚪ 미확정', cls:'ub-none', score:0, daysLeft:null};
+  const today = new Date(); today.setHours(0,0,0,0);
+  const target = new Date(dateStr); target.setHours(0,0,0,0);
+  const daysLeft = Math.ceil((target - today) / 86400000);
+  if (daysLeft <= 7)  return {level:'critical', label:`🔴 긴급 (D-${daysLeft})`,  cls:'ub-critical', score:100, daysLeft};
+  if (daysLeft <= 21) return {level:'warn',     label:`🟠 주의 (D-${daysLeft})`,  cls:'ub-warn',     score:50,  daysLeft};
+  return                     {level:'ok',       label:`🟢 여유 (D-${daysLeft})`,  cls:'ub-ok',       score:10,  daysLeft};
+}
+
+// 품목별 최고 중요도 (여러 출고예정 중 가장 급한 것 기준)
+function getProductMaxUrgency(productId, color) {
+  const relevant = state.deliveries.filter(d => !d.confirmed && d.product===productId && d.color===color);
+  if (!relevant.length) return {level:'none', score:0};
+  const urgencies = relevant.map(d => getDeliveryUrgency(d.date));
+  return urgencies.reduce((max, u) => u.score > max.score ? u : max, urgencies[0]);
+}
+
+// 누적 로스 계산
+function calcDayCapacity(plans) {
+  if (!plans.length) return 1440;
+  const fp = getProd(plans[0].product);
+  let base = fp ? fp.dailyCap : 1440;
+  let loss = 0;
+  for (let i=1; i<plans.length; i++) {
+    const pp=getProd(plans[i-1].product), cp=getProd(plans[i].product);
+    if (pp&&cp&&pp.mold!==cp.mold) loss += MOLD_LOSS;
+    else if (plans[i-1].color !== plans[i].color) loss += COLOR_LOSS;
+  }
+  return Math.round(base*(1-loss));
+}
+function lossDesc(existing, newProd, newColor) {
+  if (!existing.length) return '';
+  const last=existing[existing.length-1], lp=getProd(last.product), np=getProd(newProd);
+  if (lp&&np&&lp.mold!==np.mold) return '몰드교체 −7%';
+  if (last.color!==newColor) return '색상교체 −3%';
+  return '';
+}
+function totalLossPct(existing, newProd, newColor) {
+  const combined=[...existing,{product:newProd,color:newColor}];
+  const cap=calcDayCapacity(combined);
+  const fp=getProd(newProd); const base=fp?fp.dailyCap:1440;
+  return Math.round((1-cap/base)*100);
+}
+
+// ══════════════════════════════════════════
+// 상태
+// ══════════════════════════════════════════
+const state = {
+  inventory: {
+    '200x200x60T':{그레이:6134,화이트:3492,블랙:648,옐로우:216,래드:324},
+    '200x200x80T':{그레이:816,화이트:144,블랙:3989,옐로우:101,래드:418},
+    '100x200x60T':{그레이:0,화이트:0,블랙:0,옐로우:0,래드:0},
+    '100x200x80T':{그레이:356,화이트:198,블랙:0,옐로우:0,래드:0},
+  },
+  // ★ 양생실: product+color별 수량만 관리 (날짜 없음)
+  // { '200x200x60T|그레이': 720, ... }
+  curingStock: {},
+  cubingLog: [], // 큐빙 완료 이력
+  deliveries: [
+    {id:1,site:'달성 화물차 공영차고지',product:'200x200x60T',color:'화이트',qty:324,date:'2026-04-10',note:'',confirmed:false},
+    {id:2,site:'광명~화천간 도로확포장',product:'200x200x60T',color:'그레이',qty:1519,date:'2026-03-20',note:'점박이 패턴',confirmed:false},
+    {id:3,site:'경안고등학교 다목적강당',product:'200x200x60T',color:'그레이',qty:1222,date:'2026-04-15',note:'',confirmed:false},
+    {id:4,site:'우진산업 광주 북구',product:'200x200x80T',color:'그레이',qty:6210,date:'2026-04-30',note:'',confirmed:false},
+    {id:5,site:'우진산업 광주 북구',product:'200x200x60T',color:'그레이',qty:2784,date:'2026-04-30',note:'',confirmed:false},
+    {id:6,site:'상주중학교 그린스마트',product:'200x200x60T',color:'그레이',qty:7619,date:'2026-05-15',note:'',confirmed:false},
+    {id:7,site:'일산해변 풍류문화놀이터',product:'200x200x60T',color:'블랙',qty:2103,date:'2026-05-01',note:'',confirmed:false},
+    {id:8,site:'일산해변 풍류문화놀이터',product:'200x200x60T',color:'화이트',qty:2103,date:'2026-05-01',note:'',confirmed:false},
+    {id:9,site:'우진산업 전남 장성',product:'200x200x80T',color:'그레이',qty:2990,date:'2026-04-20',note:'',confirmed:false},
+  ],
+  calPlans: {},
+  customHolidays: {},
+  confirmLog: [],
+  currentYear:2026, currentMonth:2,
+  calModalDate: null,
+  nextId: 10,
+};
+
+const curingKey = (product, color) => `${product}|${color}`;
+const getCuringQty = (product, color) => state.curingStock[curingKey(product,color)] || 0;
+const setCuringQty = (product, color, qty) => {
+  const k = curingKey(product, color);
+  if (qty <= 0) delete state.curingStock[k];
+  else state.curingStock[k] = qty;
+};
+const addCuringQty = (product, color, qty) => setCuringQty(product, color, getCuringQty(product,color)+qty);
+
+// ══════════════════════════════════════════
+// 계산
+// ══════════════════════════════════════════
+function calcTotalCuring() {
+  return Object.values(state.curingStock).reduce((s,v)=>s+v, 0);
+}
+
+function calcPending() {
+  const p = {};
+  PRODUCTS.forEach(pr => { p[pr.id]={}; COLORS.forEach(c=>p[pr.id][c]=0); });
+  state.deliveries.filter(d=>!d.confirmed).forEach(d => {
+    if (p[d.product]) p[d.product][d.color] = (p[d.product][d.color]||0) + d.qty;
+  });
+  return p;
+}
+
+function calcResults() {
+  const pending = calcPending(), res = [];
+  PRODUCTS.forEach(prod => {
+    COLORS.forEach(color => {
+      const inv = (state.inventory[prod.id]&&state.inventory[prod.id][color])||0;
+      const cur = getCuringQty(prod.id, color);
+      const pend = (pending[prod.id]&&pending[prod.id][color])||0;
+      const avail = inv - cur - pend;
+      const minStock = getMinStock(prod.id, color);
+      const needed = Math.max(minStock-avail, 0);
+      const urgency = getProductMaxUrgency(prod.id, color);
+      // ★ 가중 우선순위 점수: 부족량 + 중요도 보너스 + 중요도 배수
+      const weightMult = urgency.level==='critical'?2.0 : urgency.level==='warn'?1.5 : urgency.level==='none'?0.5:1.0;
+      const weightedScore = needed * weightMult + urgency.score;
+      let status='ok';
+      if (avail<0) status='danger';
+      else if (avail<minStock) status='warn';
+      res.push({product:prod.id, productLabel:prod.label, tag:prod.tag, priority:prod.priority,
+        color, inv, cur, pend, avail, minStock, needed, urgency, weightedScore,
+        daysNeeded: needed>0?(needed/prod.dailyCap).toFixed(1):0, status});
+    });
+  });
+  // ★ 정렬: 60T/80T 우선순위 → 가중 점수 내림차순
+  res.sort((a,b) => {
+    if (a.priority !== b.priority) return a.priority - b.priority;
+    return b.weightedScore - a.weightedScore;
+  });
+  return res;
+}
+
+// ══════════════════════════════════════════
+// 대시보드
+// ══════════════════════════════════════════
+function renderDashboard() {
+  const results = calcResults();
+  const urgent = results.filter(r=>r.status==='danger');
+  const warnItems = results.filter(r=>r.status==='warn');
+  const okItems = results.filter(r=>r.status==='ok');
+  const totalNeeded = results.reduce((s,r)=>s+r.needed, 0);
+  const totalCuring = calcTotalCuring();
+
+  document.getElementById('stat-row').innerHTML = `
+    <div class="stat-box"><div class="stat-lbl">🔴 긴급 부족</div><div class="stat-val sv-danger">${urgent.length}개</div></div>
+    <div class="stat-box"><div class="stat-lbl">⚠️ 기준 미달</div><div class="stat-val sv-warn">${warnItems.length}개</div></div>
+    <div class="stat-box"><div class="stat-lbl">✅ 기준 충족</div><div class="stat-val sv-ok">${okItems.length}개</div></div>
+    <div class="stat-box"><div class="stat-lbl">🧪 양생실 재고</div><div class="stat-val sv-purple">${totalCuring.toLocaleString()}㎡</div></div>
+    <div class="stat-box"><div class="stat-lbl">📋 총 생산필요량</div><div class="stat-val sv-blue">${totalNeeded.toLocaleString()}㎡</div></div>`;
+
+  let ah='';
+  if (totalCuring>0) ah+=`<div class="alert al-curing"><span class="ai">🧪</span><div>양생실 보관 중 <strong>${totalCuring.toLocaleString()}㎡</strong> — 큐빙 완료 전까지 가용재고에서 제외됩니다.</div></div>`;
+  if (urgent.length>0){ const ns=urgent.slice(0,3).map(r=>`${r.productLabel} ${r.color}`).join(', '); ah+=`<div class="alert al-danger"><span class="ai">🚨</span><div><strong>즉시 생산:</strong> ${ns}${urgent.length>3?` 외 ${urgent.length-3}개`:''}</div></div>`; }
+  if (warnItems.length>0) ah+=`<div class="alert al-warn"><span class="ai">⚠️</span><div>${warnItems.length}개 품목 최소기준 미달</div></div>`;
+  if (!urgent.length&&!warnItems.length&&!totalCuring) ah=`<div class="alert al-ok"><span class="ai">✅</span><div>모든 품목 최소 재고 기준 충족</div></div>`;
+  document.getElementById('alert-area').innerHTML = ah;
+
+  const need = results.filter(r=>r.needed>0);
+  let ph = need.length===0?'<div style="color:var(--text3);font-size:13px;padding:10px 0;">생산이 필요한 품목이 없습니다.</div>':'';
+  need.slice(0,10).forEach((r,i) => {
+    const dot=`<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${COLOR_HEX[r.color]||'#ccc'};border:1px solid #ddd;vertical-align:middle;margin-right:3px;"></span>`;
+    const urgBadge = r.urgency && r.urgency.level!=='none' ? `<span class="urgency-badge ${r.urgency.cls}" style="font-size:10px;padding:1px 6px;">${r.urgency.label}</span>` : '';
+    ph+=`<div class="pri-item ${r.status}">
+      <div class="pri-rank">#${i+1}</div>
+      <div class="pri-info">
+        <div class="pri-spec"><span class="tag t${r.tag[0]}0">${r.tag}</span> ${r.productLabel} ${dot}${r.color} ${urgBadge}</div>
+        <div class="pri-detail">실재고 <span class="mono bold">${r.inv.toLocaleString()}</span>${r.cur>0?` − 양생 <span class="mono tc">${r.cur.toLocaleString()}</span>`:''} − 출고예정 <span class="mono tw">${r.pend.toLocaleString()}</span> = 가용 <span class="mono bold ${r.avail<0?'td':'tw'}">${r.avail.toLocaleString()}㎡</span> / 기준 ${r.minStock.toLocaleString()}㎡</div>
+      </div>
+      <div class="pri-nums">
+        <div><div class="pn-lbl">생산필요</div><div class="pn-val td">${r.needed.toLocaleString()}㎡</div></div>
+        <div><div class="pn-lbl">예상소요</div><div class="pn-val ta">${r.daysNeeded}일</div></div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('priority-list').innerHTML = ph;
+
+  let th='';
+  results.forEach(r => {
+    const sc=r.status==='danger'?'ch-danger':r.status==='warn'?'ch-warn':'ch-ok';
+    const sl=r.status==='danger'?'긴급':r.status==='warn'?'부족':'충족';
+    const ac=r.avail<0?'td bold':r.avail<r.minStock?'tw bold':'tok bold';
+    th+=`<tr>
+      <td><span class="tag t${r.tag[0]}0">${r.tag}</span> ${r.productLabel}</td>
+      <td><span style="display:inline-flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:50%;background:${COLOR_HEX[r.color]||'#ccc'};border:1px solid #ddd;display:inline-block;"></span>${r.color}</span></td>
+      <td class="mono">${r.inv.toLocaleString()}</td>
+      <td class="mono ${r.cur>0?'tc':''}">${r.cur>0?r.cur.toLocaleString():'—'}</td>
+      <td class="mono tw">${r.pend.toLocaleString()}</td>
+      <td class="mono bold ${ac}">${r.avail.toLocaleString()}</td>
+      <td class="mono">${r.minStock.toLocaleString()}</td>
+      <td>${r.needed>0?`<span class="td bold">+${r.needed.toLocaleString()}</span>`:'<span class="tok">—</span>'}</td>
+      <td>${r.daysNeeded>0?`<span class="ta">${r.daysNeeded}일</span>`:'—'}</td>
+      <td><span class="chip ${sc}">${sl}</span></td>
+    </tr>`;
+  });
+  document.getElementById('summary-tbody').innerHTML = th;
+}
+
+// ══════════════════════════════════════════
+// 양생·큐빙 관리 (핵심: 수량 기반 수동 관리)
+// ══════════════════════════════════════════
+function renderPipeline() {
+  const totalCuring = calcTotalCuring();
+  document.getElementById('curing-total-badge').textContent = `합계: ${totalCuring.toLocaleString()}㎡`;
+
+  // ── 양생실 현황 테이블 ──
+  const curingEntries = [];
+  PRODUCTS.forEach(prod => {
+    COLORS.forEach(color => {
+      const qty = getCuringQty(prod.id, color);
+      if (qty > 0) curingEntries.push({prod, color, qty});
+    });
+  });
+
+  let cbHtml = '';
+  if (!curingEntries.length) {
+    cbHtml = '<div class="cr-empty">양생실에 제품이 없습니다</div>';
+  } else {
+    // 헤더
+    cbHtml += `<div class="curing-row" style="background:var(--surface2);font-size:12px;font-weight:600;color:var(--text2);">
+      <div>제품</div><div>색상</div><div>현재 수량</div><div>직접 수정 (㎡)</div><div></div><div></div>
+    </div>`;
+    curingEntries.forEach(({prod,color,qty}) => {
+      const k = curingKey(prod.id, color);
+      cbHtml += `<div class="curing-row">
+        <div class="cr-label"><span class="tag t${prod.tag[0]}0">${prod.tag}</span> ${prod.label}</div>
+        <div style="display:flex;align-items:center;gap:5px;">
+          <span style="width:10px;height:10px;border-radius:50%;background:${COLOR_HEX[color]};border:1px solid #ddd;display:inline-block;"></span>${color}
+        </div>
+        <div class="cr-qty">${qty.toLocaleString()}㎡</div>
+        <div class="cr-input">
+          <input type="number" min="0" id="cr_${k}" value="${qty}" placeholder="수량">
+          <button class="btn btn-edit btn-sm" onclick="saveCuringManual('${prod.id}','${color}')">수정</button>
+        </div>
+        <div class="cr-btn">
+          <button class="btn btn-cubing btn-sm" onclick="openCubingEntry('${prod.id}','${color}',${qty})">🔲 큐빙처리</button>
+        </div>
+        <div class="cr-adj">
+          <button class="btn btn-red-sm" onclick="clearCuringItem('${prod.id}','${color}')">전량제거</button>
+        </div>
+      </div>`;
+    });
+  }
+  document.getElementById('curing-body').innerHTML = cbHtml;
+
+  // ── 오늘 큐빙 처리 폼 ──
+  // 양생실에 있는 항목만 선택 가능
+  let cfHtml = '';
+  if (!curingEntries.length) {
+    cfHtml = '<div style="color:var(--text3);font-size:13px;padding:8px 0;">양생실에 제품이 없습니다.</div>';
+  } else {
+    cfHtml = `<div style="display:grid;grid-template-columns:1fr 1fr 140px auto;gap:10px;align-items:end;flex-wrap:wrap;">
+      <div><label class="fl">제품·색상 선택</label>
+        <select class="fs" id="cubing-select">`;
+    curingEntries.forEach(({prod,color,qty}) => {
+      cfHtml += `<option value="${prod.id}|${color}">${prod.label} ${color} (양생: ${qty.toLocaleString()}㎡)</option>`;
+    });
+    cfHtml += `</select></div>
+      <div><label class="fl">큐빙 완료 수량 (㎡)</label><input class="fi" id="cubing-qty" type="number" min="0" placeholder="오늘 큐빙한 ㎡"></div>
+      <div><label class="fl">메모</label><input class="fi" id="cubing-note" type="text" placeholder="선택사항"></div>
+      <div><button class="btn btn-cubing" onclick="completeCubing()" style="width:100%;">✅ 큐빙 완료<br>→ 실재고 편입</button></div>
+    </div>`;
+  }
+  document.getElementById('cubing-form').innerHTML = cfHtml;
+
+  // ── 큐빙 이력 ──
+  const logs = state.cubingLog.slice(-12).reverse();
+  let lh = '';
+  if (!logs.length) lh='<div style="color:var(--text3);font-size:13px;padding:6px 0;">완료 이력이 없습니다.</div>';
+  else logs.forEach(l => {
+    lh += `<div class="log-row">
+      <span class="chip ch-ok">큐빙완료</span>
+      <span style="width:9px;height:9px;border-radius:50%;background:${COLOR_HEX[l.color]||'#ccc'};border:1px solid #ddd;display:inline-block;"></span>
+      <span style="flex:1;">${getProd(l.product)?.label||l.product} ${l.color}</span>
+      <span class="mono bold tok">+${l.qty.toLocaleString()}㎡</span>
+      <span style="color:var(--text3);font-size:12px;">${l.date}${l.note?' — '+l.note:''}</span>
+    </div>`;
+  });
+  document.getElementById('cubing-log-list').innerHTML = lh;
+}
+
+function saveCuringManual(product, color) {
+  const k = curingKey(product, color);
+  const el = document.getElementById(`cr_${k}`);
+  if (!el) return;
+  const newQty = parseFloat(el.value)||0;
+  const oldQty = getCuringQty(product, color);
+  setCuringQty(product, color, newQty);
+  state.confirmLog.push({date:fmt(new Date()),type:'curing_adj',label:`${getProd(product)?.label} ${color} 양생수량 수정`,qty:Math.abs(newQty-oldQty)});
+  renderPipeline(); renderDashboard();
+}
+
+function clearCuringItem(product, color) {
+  if (!confirm(`${getProd(product)?.label} ${color} 양생실 전량 제거하시겠습니까?`)) return;
+  setCuringQty(product, color, 0);
+  renderPipeline(); renderDashboard();
+}
+
+function openCubingEntry(product, color, maxQty) {
+  // 큐빙처리 버튼 누르면 해당 항목이 선택된 상태로 폼으로 스크롤
+  const sel = document.getElementById('cubing-select');
+  if (sel) {
+    sel.value = curingKey(product, color);
+    const qtyEl = document.getElementById('cubing-qty');
+    if (qtyEl) { qtyEl.value = maxQty; qtyEl.focus(); }
+  }
+  document.getElementById('cubing-form').scrollIntoView({behavior:'smooth'});
+}
+
+function completeCubing() {
+  const sel = document.getElementById('cubing-select');
+  const qtyEl = document.getElementById('cubing-qty');
+  const noteEl = document.getElementById('cubing-note');
+  if (!sel||!qtyEl) return;
+  const [product, color] = sel.value.split('|');
+  const qty = parseFloat(qtyEl.value)||0;
+  const note = noteEl?.value.trim()||'';
+  if (qty<=0) { alert('큐빙 완료 수량을 입력해주세요.'); return; }
+  const curQty = getCuringQty(product, color);
+  if (qty > curQty) { alert(`입력 수량(${qty}㎡)이 양생실 재고(${curQty}㎡)를 초과합니다.`); return; }
+  // 양생실 차감
+  setCuringQty(product, color, curQty - qty);
+  // 실재고 편입
+  if (!state.inventory[product]) state.inventory[product]={};
+  state.inventory[product][color] = (state.inventory[product][color]||0) + qty;
+  // 이력 기록
+  state.cubingLog.push({date:fmt(new Date()),product,color,qty,note});
+  state.confirmLog.push({date:fmt(new Date()),type:'cubing_done',label:`${getProd(product)?.label} ${color} 큐빙완료`,qty});
+  renderPipeline(); renderDashboard(); renderInventory();
+  alert(`✅ 큐빙 완료!\n${getProd(product)?.label} ${color} ${qty.toLocaleString()}㎡\n→ 실재고 편입 완료`);
+}
+
+function openAddCuringModal() { document.getElementById('ac-qty').value=''; document.getElementById('ac-note').value=''; document.getElementById('add-curing-modal').classList.add('open'); }
+function closeAddCuringModal() { document.getElementById('add-curing-modal').classList.remove('open'); }
+function saveAddCuring() {
+  const product = document.getElementById('ac-product').value;
+  const color = document.getElementById('ac-color').value;
+  const qty = parseFloat(document.getElementById('ac-qty').value)||0;
+  const note = document.getElementById('ac-note').value.trim();
+  if (qty<=0) { alert('수량을 입력해주세요.'); return; }
+  addCuringQty(product, color, qty);
+  state.confirmLog.push({date:fmt(new Date()),type:'curing_add',label:`${getProd(product)?.label} ${color} 수동추가`,qty});
+  closeAddCuringModal(); renderPipeline(); renderDashboard();
+  alert(`✅ 양생실에 ${getProd(product)?.label} ${color} ${qty.toLocaleString()}㎡ 추가됨`);
+}
+
+// ══════════════════════════════════════════
+// 재고관리
+// ══════════════════════════════════════════
+function renderInventory() {
+  function buildTable(tableId, products) {
+    const el=document.getElementById(tableId);
+    let h=`<thead><tr><th>색상</th>`;
+    products.forEach(p=>h+=`<th>${p.label} <span class="tag t${p.tag[0]}0">${p.tag}</span></th>`);
+    h+=`<th>최소기준</th><th>작업</th></tr></thead><tbody>`;
+    COLORS.forEach(color => {
+      h+=`<tr><td><span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:11px;height:11px;border-radius:50%;background:${COLOR_HEX[color]};border:1px solid #ddd;display:inline-block;"></span>${color}</span></td>`;
+      products.forEach(p=>{ const v=(state.inventory[p.id]&&state.inventory[p.id][color])||0; h+=`<td><input type="number" min="0" id="inv_${p.id}_${color}" value="${v}"></td>`; });
+      h+=`<td style="font-size:12px;color:var(--text3);">${getMinStock(products[0].id,color).toLocaleString()}㎡</td>`;
+      h+=`<td><button class="btn btn-edit btn-sm" onclick="confirmInbound('${products.map(p=>p.id).join(',')}','${color}')">📥 입고확정</button></td></tr>`;
+    });
+    h+=`</tbody>`; el.innerHTML=h;
+  }
+  buildTable('inv-table-200', PRODUCTS.filter(p=>p.id.startsWith('200')));
+  buildTable('inv-table-100', PRODUCTS.filter(p=>p.id.startsWith('100')));
+  if (state.confirmLog.length>0) {
+    document.getElementById('confirm-log-card').style.display='block';
+    let lh='';
+    state.confirmLog.slice(-8).reverse().forEach(l=>{
+      const typeLabel = {outbound:'출고확정',cubing_done:'큐빙완료',inbound:'입고확정',curing_add:'양생추가',curing_adj:'양생수정'}[l.type]||l.type;
+      lh+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px;">
+        <span>${l.date} <span class="chip ${l.type==='outbound'?'ch-danger':'ch-ok'}">${typeLabel}</span></span>
+        <span>${l.label}</span>
+        <span class="mono bold ${l.type==='outbound'?'td':'tok'}">${l.type==='outbound'?'-':'+'}${l.qty.toLocaleString()}㎡</span>
+      </div>`;
+    });
+    document.getElementById('confirm-log').innerHTML=lh;
+  }
+}
+function confirmInbound(pids,color){
+  pids.split(',').forEach(pid=>{
+    const el=document.getElementById(`inv_${pid}_${color}`);if(!el)return;
+    const nv=parseFloat(el.value)||0,ov=(state.inventory[pid]&&state.inventory[pid][color])||0,diff=nv-ov;
+    if(diff!==0){if(!state.inventory[pid])state.inventory[pid]={};state.inventory[pid][color]=nv;
+      state.confirmLog.push({date:fmt(new Date()),type:'inbound',label:`${getProd(pid)?.label} ${color}`,qty:Math.abs(diff)});}
+  });
+  saveInventory(true);alert('✅ 입고 확정');
+}
+function saveInventory(silent=false){
+  PRODUCTS.forEach(p=>COLORS.forEach(c=>{const el=document.getElementById(`inv_${p.id}_${c}`);if(el){if(!state.inventory[p.id])state.inventory[p.id]={};state.inventory[p.id][c]=parseFloat(el.value)||0;}}));
+  renderDashboard();renderInventory();
+  if(!silent)alert('✅ 재고 저장 완료');
+}
+function loadDefaults(){
+  if(!confirm('기본값으로 초기화하시겠습니까?'))return;
+  state.inventory={'200x200x60T':{그레이:6134,화이트:3492,블랙:648,옐로우:216,래드:324},'200x200x80T':{그레이:816,화이트:144,블랙:3989,옐로우:101,래드:418},'100x200x60T':{그레이:0,화이트:0,블랙:0,옐로우:0,래드:0},'100x200x80T':{그레이:356,화이트:198,블랙:0,옐로우:0,래드:0}};
+  renderInventory();renderDashboard();
+}
+
+// ══════════════════════════════════════════
+// 출고예정
+// ══════════════════════════════════════════
+function renderDeliveries(){
+  // 중요도 요약
+  const counts = {critical:0,warn:0,ok:0,none:0};
+  const qtys = {critical:0,warn:0,ok:0,none:0};
+  state.deliveries.filter(d=>!d.confirmed).forEach(d=>{
+    const u=getDeliveryUrgency(d.date);
+    counts[u.level]=(counts[u.level]||0)+1;
+    qtys[u.level]=(qtys[u.level]||0)+d.qty;
+  });
+  const summaryEl=document.getElementById('urgency-summary');
+  if(summaryEl){
+    summaryEl.innerHTML=`
+      <div class="urgency-summary-item" style="border-color:#fecaca;background:#fff0f0;">
+        <span class="urgency-badge ub-critical">🔴 긴급</span>
+        <span class="uis-qty td">${counts.critical}건</span>
+        <span style="font-size:12px;color:#991b1b;">${qtys.critical.toLocaleString()}㎡</span>
+      </div>
+      <div class="urgency-summary-item" style="border-color:#fde68a;background:#fff8e6;">
+        <span class="urgency-badge ub-warn">🟠 주의</span>
+        <span class="uis-qty tw">${counts.warn}건</span>
+        <span style="font-size:12px;color:#92400e;">${qtys.warn.toLocaleString()}㎡</span>
+      </div>
+      <div class="urgency-summary-item" style="border-color:#a7f3d0;background:#e6f5ee;">
+        <span class="urgency-badge ub-ok">🟢 여유</span>
+        <span class="uis-qty tok">${counts.ok}건</span>
+        <span style="font-size:12px;color:#065f46;">${qtys.ok.toLocaleString()}㎡</span>
+      </div>
+      <div class="urgency-summary-item">
+        <span class="urgency-badge ub-none">⚪ 미확정</span>
+        <span class="uis-qty" style="color:var(--text3);">${counts.none}건</span>
+        <span style="font-size:12px;color:var(--text3);">${qtys.none.toLocaleString()}㎡</span>
+      </div>`;
+  }
+
+  const area=document.getElementById('delivery-list-area');
+  if(!state.deliveries.length){area.innerHTML='<div style="color:var(--text3);font-size:13px;padding:12px 0;">등록된 출고예정이 없습니다.</div>';return;}
+
+  // 중요도 순 정렬 후 표시
+  const sorted = [...state.deliveries].sort((a,b)=>{
+    const ua=getDeliveryUrgency(a.date), ub2=getDeliveryUrgency(b.date);
+    if(ub2.score!==ua.score) return ub2.score-ua.score;
+    return (a.date||'9999')>(b.date||'9999')?1:-1;
+  });
+
+  const grouped={};PRODUCTS.forEach(p=>grouped[p.id]=[]);
+  sorted.forEach(d=>{if(grouped[d.product]!==undefined)grouped[d.product].push(d);});
+  let html='';
+  PRODUCTS.forEach(prod=>{
+    const list=grouped[prod.id];if(!list.length)return;
+    const total=list.reduce((s,d)=>s+d.qty,0);
+    html+=`<div class="card mb12"><div class="card-title"><span class="dot"></span>${prod.label} <span class="tag t${prod.tag[0]}0">${prod.tag}</span><span style="margin-left:auto;font-size:12px;color:var(--text2);">총 ${total.toLocaleString()}㎡</span></div>`;
+    list.forEach(d=>{
+      const u=getDeliveryUrgency(d.date);
+      const rowBg=d.confirmed?''
+        :u.level==='critical'?'background:#fff8f8;border-left:3px solid #dc2626;'
+        :u.level==='warn'?'background:#fffdf5;border-left:3px solid #d97706;'
+        :'';
+      html+=`<div style="display:flex;align-items:center;gap:9px;padding:9px 12px;border-bottom:1px solid var(--border);font-size:13px;flex-wrap:wrap;${rowBg}">
+        <span style="width:9px;height:9px;border-radius:50%;background:${COLOR_HEX[d.color]||'#ccc'};border:1px solid #ddd;display:inline-block;flex-shrink:0;"></span>
+        <span style="flex:1;font-weight:500;">${d.site}${d.confirmed?' <span class="chip ch-blue">출고확정</span>':''}</span>
+        ${!d.confirmed?`<span class="urgency-badge ${u.cls}">${u.label}</span>`:''}
+        <span style="color:var(--text2);">${d.color}${d.date?' · '+d.date:''}${d.note?' · '+d.note:''}</span>
+        <span class="mono bold ta">${d.qty.toLocaleString()}㎡</span>
+        <div class="flex gap8">
+          ${!d.confirmed?`<button class="btn btn-edit btn-sm" onclick="openDeliveryModalEdit(${d.id})">✏️</button>`:''}
+          ${!d.confirmed?`<button class="btn btn-confirm btn-sm" onclick="confirmDelivery(${d.id})">✅ 출고확정</button>`:''}
+          <button class="btn btn-red-sm" onclick="removeDelivery(${d.id})">삭제</button>
+        </div>
+      </div>`;
+    });
+    html+=`</div>`;
+  });
+  area.innerHTML=html;
+}
+function openDeliveryModal(){document.getElementById('delivery-modal-title').textContent='출고예정 추가';document.getElementById('d-edit-id').value='';document.getElementById('d-site').value='';document.getElementById('d-qty').value='';document.getElementById('d-note').value='';document.getElementById('d-date').value=fmt(new Date());document.getElementById('delivery-modal').classList.add('open');}
+function openDeliveryModalEdit(id){const d=state.deliveries.find(x=>x.id===id);if(!d)return;document.getElementById('delivery-modal-title').textContent='출고예정 수정';document.getElementById('d-edit-id').value=id;document.getElementById('d-site').value=d.site;document.getElementById('d-product').value=d.product;document.getElementById('d-color').value=d.color;document.getElementById('d-qty').value=d.qty;document.getElementById('d-date').value=d.date;document.getElementById('d-note').value=d.note||'';document.getElementById('delivery-modal').classList.add('open');}
+function closeDeliveryModal(){document.getElementById('delivery-modal').classList.remove('open');}
+function saveDelivery(){
+  const site=document.getElementById('d-site').value.trim(),product=document.getElementById('d-product').value,color=document.getElementById('d-color').value,qty=parseFloat(document.getElementById('d-qty').value),date=document.getElementById('d-date').value,note=document.getElementById('d-note').value.trim(),eid=document.getElementById('d-edit-id').value;
+  if(!site){alert('현장명을 입력해주세요.');return;}if(!qty||qty<=0){alert('수량을 입력해주세요.');return;}if(!date){alert('날짜를 선택해주세요.');return;}
+  if(eid){const d=state.deliveries.find(x=>x.id===parseInt(eid));if(d)Object.assign(d,{site,product,color,qty,date,note});}
+  else state.deliveries.push({id:state.nextId++,site,product,color,qty,date,note,confirmed:false});
+  closeDeliveryModal();renderDeliveries();renderDashboard();
+}
+function confirmDelivery(id){
+  if(!confirm('출고 확정 처리하시겠습니까?\n재고에서 차감됩니다.'))return;
+  const d=state.deliveries.find(x=>x.id===id);if(!d)return;
+  if(state.inventory[d.product]&&state.inventory[d.product][d.color]!==undefined)state.inventory[d.product][d.color]=Math.max(0,(state.inventory[d.product][d.color]||0)-d.qty);
+  state.confirmLog.push({date:fmt(new Date()),type:'outbound',label:`${d.site} ${d.color}`,qty:d.qty});
+  d.confirmed=true;renderDeliveries();renderDashboard();renderInventory();alert('✅ 출고 확정. 재고 차감 완료.');
+}
+function removeDelivery(id){if(!confirm('삭제하시겠습니까?'))return;state.deliveries=state.deliveries.filter(d=>d.id!==id);renderDeliveries();renderDashboard();}
+
+// ══════════════════════════════════════════
+// 달력
+// ══════════════════════════════════════════
+function renderCalendar(){
+  const year=state.currentYear,month=state.currentMonth;
+  document.getElementById('cal-month-title').textContent=`${year}년 ${month+1}월`;
+  const firstDay=new Date(year,month,1).getDay(),daysInMonth=new Date(year,month+1,0).getDate(),today=new Date();
+  const totalCells=Math.ceil((firstDay+daysInMonth)/7)*7;
+  let html='',dc=1;
+  for(let i=0;i<totalCells;i++){
+    const dow=i%7;let cellDate,isOther=false;
+    if(i<firstDay){cellDate=new Date(year,month-1,new Date(year,month,0).getDate()-firstDay+i+1);isOther=true;}
+    else if(dc<=daysInMonth){cellDate=new Date(year,month,dc++);}
+    else{cellDate=new Date(year,month+1,dc-daysInMonth);dc++;isOther=true;}
+    const dk=fmt(cellDate),isToday=cellDate.toDateString()===today.toDateString();
+    const isSun=dow===0,isSat=dow===6,holiday=!isOther&&isHoliday(dk),rest=!isOther&&isRestDay(dk);
+    let cls='cal-day';
+    if(isOther)cls+=' other-month';
+    else cls+=' clickable';
+    if(isToday)cls+=' today';
+    if(!isOther&&isSun)cls+=' sunday';if(!isOther&&isSat)cls+=' saturday';
+    if(!isOther&&holiday&&!isSun&&!isSat)cls+=' holiday-day';if(!isOther&&rest&&!holiday)cls+=' rest-day';
+    const plans=state.calPlans[dk]||[];
+    const usedCap=plans.reduce((s,p)=>s+p.qty,0);
+    const dayCap=calcDayCapacity(plans);
+    const capPct=Math.min(100,Math.round(usedCap/1440*100));
+    let inner='';
+    if(!isOther&&holiday)inner+=`<div class="cal-hl">${getHolidayLabel(dk)}</div>`;
+    if(!isOther&&rest&&!holiday)inner+=`<div class="cal-rl">${state.customHolidays[dk]||'휴무'}</div>`;
+    inner+=`<div class="cal-evs">`;
+    plans.forEach(p=>{const ec=p.confirmed?'ce-ok':p.urgency==='danger'?'ce-danger':'ce-warn';inner+=`<div class="cal-ev ${ec}">${p.tag} ${p.color} ${p.qty.toLocaleString()}㎡</div>`;});
+    inner+=`</div>`;
+    if(!isOther&&plans.length>0){inner+=`<div class="cal-capbar"><div class="cal-capfill" style="width:${capPct}%;background:${capPct>90?'var(--danger)':capPct>70?'var(--warn)':'var(--accent)'}"></div></div>`;}
+    html+=`<div class="${cls}"${!isOther?` onclick="openCalModal('${dk}')"`:''}>
+      <div class="cdn">${cellDate.getDate()}</div>${inner}</div>`;
+  }
+  document.getElementById('cal-days').innerHTML=html;
+}
+function changeMonth(dir){state.currentMonth+=dir;if(state.currentMonth>11){state.currentMonth=0;state.currentYear++;}if(state.currentMonth<0){state.currentMonth=11;state.currentYear--;}renderCalendar();}
+
+function openCalModal(dk){
+  state.calModalDate=dk;
+  const hl=getHolidayLabel(dk);
+  document.getElementById('cal-modal-title').textContent=`📅 ${dk}${hl?' ('+hl+')':''}`;
+  const plans=state.calPlans[dk]||[];
+  const usedCap=plans.reduce((s,p)=>s+p.qty,0);
+  const dayCap=calcDayCapacity(plans);
+  let sh='';
+  if(isRestDay(dk))sh=`<div class="alert al-warn mb8"><span class="ai">⚠️</span><div>${hl||'주말/휴무'}입니다. AI 자동계획에서 제외되지만 계획 추가는 가능합니다.</div></div>`;
+  document.getElementById('cal-day-status').innerHTML=sh;
+  let eh='';
+  if(plans.length>0){
+    eh=`<div style="margin-bottom:10px;"><div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:7px;">등록된 계획 — 사용 <span class="mono ta">${usedCap.toLocaleString()}</span> / 로스반영 <span class="mono">${dayCap.toLocaleString()}㎡</span></div>`;
+    plans.forEach((p,idx)=>{
+      const ec=p.confirmed?'ce-ok':p.urgency==='danger'?'ce-danger':'ce-warn';
+      eh+=`<div style="display:flex;align-items:center;gap:7px;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">
+        <span class="cal-ev ${ec}" style="flex-shrink:0;">${p.tag} ${p.color}</span>
+        <span style="flex:1;">${p.productLabel} <strong>${p.qty.toLocaleString()}㎡</strong>${p.note?' — '+p.note:''}</span>
+        ${p.confirmed
+          ?'<span class="chip ch-ok">생산확정→양생중</span>'
+          :`<button class="btn btn-confirm btn-sm" onclick="confirmCalPlan('${dk}',${idx})">✅ 생산확정 → 양생실</button>`}
+        <button class="btn btn-edit btn-sm" onclick="editCalPlan('${dk}',${idx})">✏️</button>
+        <button class="btn btn-red-sm btn-sm" onclick="removeCalPlan('${dk}',${idx})">삭제</button>
+      </div>`;
+    });
+    eh+=`</div>`;
+  }
+  document.getElementById('cal-existing-plans').innerHTML=eh;
+  calcCalCapacity();
+  document.getElementById('cm-qty').value='';document.getElementById('cm-note').value='';
+  document.getElementById('cal-modal').classList.add('open');
+}
+function calcCalCapacity(){
+  const dk=state.calModalDate;if(!dk)return;
+  const plans=state.calPlans[dk]||[];
+  const product=document.getElementById('cm-product')?.value||'200x200x60T';
+  const color=document.getElementById('cm-color')?.value||'그레이';
+  const usedCap=plans.reduce((s,p)=>s+p.qty,0);
+  const combined=[...plans,{product,color}];
+  const nextCap=calcDayCapacity(combined);
+  const remaining=Math.max(0,nextCap-usedCap);
+  const ld=lossDesc(plans,product,color);
+  const lp=totalLossPct(plans,product,color);
+  document.getElementById('cal-capacity-display').innerHTML=`
+    <div class="cap-item"><div class="cap-lbl">기준 용량</div><div class="cap-val">1,440㎡</div></div>
+    <div class="cap-item"><div class="cap-lbl">누적 로스</div><div class="cap-val ${lp>0?'tw':''}">${lp>0?'-'+lp+'% ('+ld+')':'없음'}</div></div>
+    <div class="cap-item"><div class="cap-lbl">로스 후 용량</div><div class="cap-val">${nextCap.toLocaleString()}㎡</div></div>
+    <div class="cap-item"><div class="cap-lbl">기사용</div><div class="cap-val tw">${usedCap.toLocaleString()}㎡</div></div>
+    <div class="cap-item"><div class="cap-lbl">추가가능</div><div class="cap-val tok">${remaining.toLocaleString()}㎡</div></div>`;
+}
+function closeCalModal(){document.getElementById('cal-modal').classList.remove('open');renderCalendar();}
+function saveCalPlan(){
+  const dk=state.calModalDate,product=document.getElementById('cm-product').value,color=document.getElementById('cm-color').value,qty=parseFloat(document.getElementById('cm-qty').value),note=document.getElementById('cm-note').value;
+  if(!qty||qty<=0){alert('생산량을 입력해주세요.');return;}
+  const prod=getProd(product);
+  if(!state.calPlans[dk])state.calPlans[dk]=[];
+  state.calPlans[dk].push({product,color,qty,note,productLabel:prod.label,tag:prod.tag,urgency:'normal',confirmed:false});
+  openCalModal(dk);
+}
+function confirmCalPlan(dk,idx){
+  const plans=state.calPlans[dk];if(!plans)return;
+  const p=plans[idx];
+  if(!confirm(`[${p.productLabel} ${p.color} ${p.qty.toLocaleString()}㎡] 생산 확정하시겠습니까?\n→ 양생실 수량에 자동 추가됩니다.`))return;
+  p.confirmed=true;
+  // 양생실 수량 증가
+  addCuringQty(p.product, p.color, p.qty);
+  state.confirmLog.push({date:fmt(new Date()),type:'curing_add',label:`${p.productLabel} ${p.color} 생산확정→양생`,qty:p.qty});
+  renderDashboard();openCalModal(dk);
+  alert(`✅ 생산 확정!\n→ 양생실에 ${p.productLabel} ${p.color} ${p.qty.toLocaleString()}㎡ 추가됨`);
+}
+function editCalPlan(dk,idx){const p=state.calPlans[dk][idx];document.getElementById('cm-product').value=p.product;document.getElementById('cm-color').value=p.color;document.getElementById('cm-qty').value=p.qty;document.getElementById('cm-note').value=p.note||'';state.calPlans[dk].splice(idx,1);openCalModal(dk);}
+function removeCalPlan(dk,idx){state.calPlans[dk].splice(idx,1);if(!state.calPlans[dk].length)delete state.calPlans[dk];openCalModal(dk);}
+
+// AI 자동계획 (중요도 가중치 반영)
+function autoSchedule(){
+  const results=calcResults();
+  // ★ 생산 필요한 품목만, 가중 점수 기준 정렬
+  const needProd=results.filter(r=>r.needed>0).sort((a,b)=>{
+    if(a.priority!==b.priority) return a.priority-b.priority;
+    return b.weightedScore-a.weightedScore;
+  });
+  if(!needProd.length){alert('현재 생산이 필요한 품목이 없습니다.');return;}
+
+  // 긴급 항목 알림
+  const criticals=needProd.filter(r=>r.urgency&&r.urgency.level==='critical');
+  let msg='✅ AI 자동 생산계획 완료\n\n적용 로직:\n• 공휴일·휴무 제외\n• 교체 횟수별 로스 누적 적용\n• 100×200: 1,200㎡/일 / 200×200: 1,440㎡/일\n• 출고 중요도 가중치 반영';
+  if(criticals.length>0){
+    const names=criticals.map(r=>`${r.productLabel} ${r.color}(${r.urgency.label})`).join(', ');
+    msg+=`\n\n🔴 긴급 최우선 배치:\n${names}`;
+  }
+
+  let curDate=new Date(2026,2,20),safety=0;
+  const remaining=needProd.map(r=>({...r,left:r.needed}));
+  while(remaining.some(r=>r.left>0)&&safety<120){
+    safety++;
+    const dk=fmt(curDate);
+    if(isRestDay(dk)){curDate.setDate(curDate.getDate()+1);continue;}
+    if(!state.calPlans[dk])state.calPlans[dk]=[];
+    for(const r of remaining){
+      if(r.left<=0)continue;
+      const existing=state.calPlans[dk];
+      const combined=[...existing,{product:r.product,color:r.color}];
+      const cap=calcDayCapacity(combined);
+      const used=existing.reduce((s,p)=>s+p.qty,0);
+      const avail=Math.max(0,cap-used);
+      if(avail<=0)continue;
+      const produce=Math.min(r.left,avail);
+      const prod=getProd(r.product);
+      existing.push({product:r.product,color:r.color,qty:Math.round(produce),note:'AI 자동계획',productLabel:prod.label,tag:prod.tag,urgency:r.status,confirmed:false});
+      r.left-=produce;
+    }
+    curDate.setDate(curDate.getDate()+1);
+  }
+  state.currentYear=2026;state.currentMonth=2;
+  renderCalendar();
+  alert(msg);
+}
+function clearSchedule(){if(!confirm('모든 생산계획을 초기화하시겠습니까?'))return;state.calPlans={};renderCalendar();}
+
+// 휴무관리
+function renderHolidays(){
+  let th='';Object.entries(OFFICIAL_HOLIDAYS).sort().forEach(([dk,lbl])=>{const d=new Date(dk),dow=['일','월','화','수','목','금','토'][d.getDay()];th+=`<tr><td class="mono">${dk} (${dow})</td><td>${lbl}</td></tr>`;});
+  document.getElementById('official-holiday-tbody').innerHTML=th;
+  const keys=Object.keys(state.customHolidays).sort();
+  let ch=keys.length?'':'<div style="color:var(--text3);font-size:13px;padding:6px 0;">등록된 사내 휴무가 없습니다.</div>';
+  keys.forEach(dk=>{const d=new Date(dk),dow=['일','월','화','수','목','금','토'][d.getDay()];ch+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 12px;border-bottom:1px solid var(--border);font-size:13px;"><span class="mono">${dk} (${dow})</span><span>${state.customHolidays[dk]}</span><button class="btn btn-red-sm" onclick="removeCustomHoliday('${dk}')">삭제</button></div>`;});
+  document.getElementById('custom-holiday-list').innerHTML=ch;
+}
+function addCustomHoliday(){const date=document.getElementById('ch-date').value,name=document.getElementById('ch-name').value.trim();if(!date){alert('날짜를 선택해주세요.');return;}if(!name){alert('휴무 사유를 입력해주세요.');return;}state.customHolidays[date]=name;document.getElementById('ch-date').value='';document.getElementById('ch-name').value='';renderHolidays();renderCalendar();alert(`✅ ${date} 휴무 등록`);}
+function removeCustomHoliday(dk){if(!confirm('삭제하시겠습니까?'))return;delete state.customHolidays[dk];renderHolidays();renderCalendar();}
+
+// 네비
+function showPage(name,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(`page-${name}`).classList.add('active');
+  if(btn)btn.classList.add('active');
+  if(name==='inventory')renderInventory();
+  if(name==='delivery')renderDeliveries();
+  if(name==='calendar')renderCalendar();
+  if(name==='holidays')renderHolidays();
+  if(name==='pipeline')renderPipeline();
+}
+// ══════════════════════════════════════════
+// SUPABASE 연동 (데이터 공유)
+// ══════════════════════════════════════════
+const SUPABASE_URL = 'https://yxnzfurjqgpsjphtmubv.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_MTNt4JsN4YpO-XunPiyO8g_j_fXDDio';
+
+// 저장할 state 키 목록
+const SYNC_KEYS = ['inventory','curingStock','deliveries','calPlans','customHolidays','cubingLog','confirmLog'];
+
+let syncTimeout = null;
+
+async function dbFetch(method, body) {
+  const url = `${SUPABASE_URL}/rest/v1/factory_data`;
+  const headers = {
+    'Content-Type': 'application/json',
+    'apikey': SUPABASE_KEY,
+    'Authorization': `Bearer ${SUPABASE_KEY}`,
+    'Prefer': method==='POST' ? 'resolution=merge-duplicates' : ''
+  };
+  try {
+    const res = await fetch(method==='GET' ? url+'?select=*' : url, {
+      method: method==='GET' ? 'GET' : 'POST',
+      headers,
+      body: body ? JSON.stringify(body) : undefined
+    });
+    if (method==='GET') return await res.json();
+    return res.ok;
+  } catch(e) {
+    console.error('DB error:', e);
+    return method==='GET' ? [] : false;
+  }
+}
+
+async function saveToDB() {
+  const rows = SYNC_KEYS.map(key => ({
+    id: key,
+    data: state[key],
+    updated_at: new Date().toISOString()
+  }));
+  await dbFetch('POST', rows);
+  showSyncStatus('✅ 저장됨');
+}
+
+async function loadFromDB() {
+  showSyncStatus('🔄 불러오는 중...');
+  const rows = await dbFetch('GET');
+  if (rows && rows.length > 0) {
+    rows.forEach(row => {
+      if (SYNC_KEYS.includes(row.id) && row.data !== null) {
+        state[row.id] = row.data;
+      }
+    });
+    // nextId 재계산
+    if (state.deliveries && state.deliveries.length > 0) {
+      state.nextId = Math.max(...state.deliveries.map(d=>d.id||0)) + 1;
+    }
+  }
+  showSyncStatus('✅ 로드 완료');
+}
+
+function scheduleSave() {
+  clearTimeout(syncTimeout);
+  syncTimeout = setTimeout(() => saveToDB(), 1500);
+}
+
+function showSyncStatus(msg) {
+  const el = document.getElementById('sync-status');
+  if (el) { el.textContent = msg; setTimeout(()=>{ el.textContent=''; }, 3000); }
+}
+
+// 기존 함수들에 자동저장 후크 추가
+const _origSaveInventory = saveInventory;
+saveInventory = function(silent=false) {
+  PRODUCTS.forEach(p=>COLORS.forEach(c=>{const el=document.getElementById(`inv_${p.id}_${c}`);if(el){if(!state.inventory[p.id])state.inventory[p.id]={};state.inventory[p.id][c]=parseFloat(el.value)||0;}}));
+  renderDashboard(); renderInventory();
+  scheduleSave();
+  if(!silent)alert('✅ 재고 저장 완료');
+};
+
+const _origSaveDelivery = saveDelivery;
+saveDelivery = function() {
+  const site=document.getElementById('d-site').value.trim(),product=document.getElementById('d-product').value,color=document.getElementById('d-color').value,qty=parseFloat(document.getElementById('d-qty').value),date=document.getElementById('d-date').value,note=document.getElementById('d-note').value.trim(),eid=document.getElementById('d-edit-id').value;
+  if(!site){alert('현장명을 입력해주세요.');return;}if(!qty||qty<=0){alert('수량을 입력해주세요.');return;}if(!date){alert('날짜를 선택해주세요.');return;}
+  if(eid){const d=state.deliveries.find(x=>x.id===parseInt(eid));if(d)Object.assign(d,{site,product,color,qty,date,note});}
+  else state.deliveries.push({id:state.nextId++,site,product,color,qty,date,note,confirmed:false});
+  closeDeliveryModal(); renderDeliveries(); renderDashboard();
+  scheduleSave();
+};
+
+const _origCompleteCubing = completeCubing;
+completeCubing = function() {
+  const sel=document.getElementById('cubing-select'),qtyEl=document.getElementById('cubing-qty'),noteEl=document.getElementById('cubing-note');
+  if(!sel||!qtyEl)return;
+  const [product,color]=sel.value.split('|'),qty=parseFloat(qtyEl.value)||0,note=noteEl?.value.trim()||'';
+  if(qty<=0){alert('큐빙 완료 수량을 입력해주세요.');return;}
+  const curQty=getCuringQty(product,color);
+  if(qty>curQty){alert(`입력 수량(${qty}㎡)이 양생실 재고(${curQty}㎡)를 초과합니다.`);return;}
+  setCuringQty(product,color,curQty-qty);
+  if(!state.inventory[product])state.inventory[product]={};
+  state.inventory[product][color]=(state.inventory[product][color]||0)+qty;
+  state.cubingLog.push({date:fmt(new Date()),product,color,qty,note});
+  state.confirmLog.push({date:fmt(new Date()),type:'cubing_done',label:`${getProd(product)?.label} ${color} 큐빙완료`,qty});
+  renderPipeline();renderDashboard();renderInventory();
+  scheduleSave();
+  alert(`✅ 큐빙 완료!\n${getProd(product)?.label} ${color} ${qty.toLocaleString()}㎡\n→ 실재고 편입 완료`);
+};
+
+window.addEventListener('DOMContentLoaded', async ()=>{
+  const now=new Date();
+  document.getElementById('today-label').textContent=`${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,'0')}.${String(now.getDate()).padStart(2,'0')}`;
+
+  // DB에서 데이터 불러오기
+  await loadFromDB();
+
+  renderDashboard();
+
+  // 30초마다 자동 새로고침 (다른 사람이 입력한 데이터 반영)
+  setInterval(async () => {
+    await loadFromDB();
+    renderDashboard();
+    const activePage = document.querySelector('.page.active')?.id?.replace('page-','');
+    if(activePage==='inventory') renderInventory();
+    if(activePage==='delivery') renderDeliveries();
+    if(activePage==='pipeline') renderPipeline();
+    if(activePage==='calendar') renderCalendar();
+  }, 30000);
+});
+</script>
+</body>
+</html>
